@@ -1,17 +1,9 @@
 package model;
 
-public class CoinAcceptor {
-    private int amount;
+import model.AbstractClasses.PaymentMethod;
 
+public class CoinAcceptor extends PaymentMethod {
     public CoinAcceptor(int amount) {
-        this.amount = amount;
-    }
-
-    public int getAmount() {
-        return amount;
-    }
-
-    public void setAmount(int amount) {
-        this.amount = amount;
+        super(amount);
     }
 }
