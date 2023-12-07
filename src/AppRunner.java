@@ -3,6 +3,8 @@ import model.*;
 import util.UniversalArray;
 import util.UniversalArrayImpl;
 
+import java.util.InputMismatchException;
+import java.util.Objects;
 import java.util.Scanner;
 
 public class AppRunner {
@@ -10,6 +12,10 @@ public class AppRunner {
     private final UniversalArray<Product> products = new UniversalArrayImpl<>();
 
     private final CoinAcceptor coinAcceptor;
+
+    private final CardAcceptor cardAcceptor;
+
+    private final Scanner scanner = new Scanner(System.in);
 
     private static boolean isExit = false;
 
@@ -22,7 +28,8 @@ public class AppRunner {
                 new Mars(ActionLetter.F, 80),
                 new Pistachios(ActionLetter.G, 130)
         });
-        coinAcceptor = new CoinAcceptor(100);
+        coinAcceptor = new CoinAcceptor(20);
+        cardAcceptor = new CardAcceptor(20);
     }
 
     public static void run() {
@@ -37,6 +44,7 @@ public class AppRunner {
         showProducts(products);
 
         print("Монет на сумму: " + coinAcceptor.getAmount());
+        print("Денег на карте: " + cardAcceptor.getAmount());
 
         UniversalArray<Product> allowProducts = new UniversalArrayImpl<>();
         allowProducts.addAll(getAllowedProducts().toArray());
@@ -47,7 +55,7 @@ public class AppRunner {
     private UniversalArray<Product> getAllowedProducts() {
         UniversalArray<Product> allowProducts = new UniversalArrayImpl<>();
         for (int i = 0; i < products.size(); i++) {
-            if (coinAcceptor.getAmount() >= products.get(i).getPrice()) {
+            if (coinAcceptor.getAmount() >= products.get(i).getPrice() || cardAcceptor.getAmount() >= products.get(i).getPrice()) {
                 allowProducts.add(products.get(i));
             }
         }
@@ -59,26 +67,21 @@ public class AppRunner {
         showActions(products);
         print(" h - Выйти");
         String action = fromConsole().substring(0, 1);
-        if ("a".equalsIgnoreCase(action)) {
-            coinAcceptor.setAmount(coinAcceptor.getAmount() + 10);
-            print("Вы пополнили баланс на 10");
-            return;
-        }
         try {
             for (int i = 0; i < products.size(); i++) {
                 if (products.get(i).getActionLetter().equals(ActionLetter.valueOf(action.toUpperCase()))) {
-                    coinAcceptor.setAmount(coinAcceptor.getAmount() - products.get(i).getPrice());
-                    print("Вы купили " + products.get(i).getName());
+                    buyProduct(products, i);
                     break;
                 }
             }
-        } catch (IllegalArgumentException e) {
             if ("h".equalsIgnoreCase(action)) {
                 isExit = true;
-            } else {
-                print("Недопустимая буква. Попрбуйте еще раз.");
-                chooseAction(products);
+            } else if ("a".equalsIgnoreCase(action)) {
+                paymentMethod();
             }
+        } catch (IllegalArgumentException e) {
+            print("Недопустимая буква. Попрбуйте еще раз.");
+            chooseAction(products);
         }
 
 
@@ -87,6 +90,9 @@ public class AppRunner {
     private void showActions(UniversalArray<Product> products) {
         for (int i = 0; i < products.size(); i++) {
             print(String.format(" %s - %s", products.get(i).getActionLetter().getValue(), products.get(i).getName()));
+        }
+        if (products.size() == 0) {
+            print("Недостаточно средств, пополните баланс");
         }
     }
 
@@ -102,5 +108,77 @@ public class AppRunner {
 
     private void print(String msg) {
         System.out.println(msg);
+    }
+
+    private void buyProduct(UniversalArray<Product> products, int i) {
+        int productPrice = products.get(i).getPrice();
+        int coinAmount = coinAcceptor.getAmount();
+        int cardAmount = cardAcceptor.getAmount();
+        try {
+            print("Выберите способ оплаты\n1. Монеты.\n2. Карта");
+            int choice = scanner.nextInt();
+            if (choice == 1 && coinAmount >= productPrice) {
+                coinAcceptor.setAmount(coinAmount - productPrice);
+                print("Вы купили " + products.get(i).getName());
+            } else if (choice == 2 && cardAmount >= productPrice) {
+                cardAcceptor.setAmount(cardAmount - productPrice);
+                print("Вы купили " + products.get(i).getName());
+            } else if (cardAmount < productPrice || coinAmount < productPrice){
+                print("Недостаточно средств, пополните баланс");
+            } else {
+                print("Такого варианта нет.");
+            }
+            boolean status = true;
+            while (status) {
+                print("Хотите что еще купить? (д/н)");
+                String exitChoice = fromConsole();
+                if (Objects.equals(exitChoice, "н")) {
+                    status = false;
+                    isExit = false;
+                } else if (Objects.equals(exitChoice, "д")) {
+                    status = false;
+                } else if(!Objects.equals(exitChoice, "н") && !Objects.equals(exitChoice, "д")) {
+                    print("Такого варианта нет");
+                }
+            }
+        } catch (InputMismatchException e) {
+            print("Неправильно данные");
+        }
+    }
+
+    private void paymentMethod() {
+        print("Выберите сопсоб оплаты\n1. Монеты\n2. Карта");
+        String paymentChoice = fromConsole().substring(0,1);
+        if (paymentChoice.equals("1")) {
+            addBalanceCoin();
+        } else if (paymentChoice.equals("2")) {
+            addBalanceCard();
+        }
+    }
+
+    private void addBalanceCoin() {
+        try {
+            print("Введите сумму");
+            int amount = Integer.parseInt(fromConsole());
+            coinAcceptor.setAmount(amount);
+        } catch (InputMismatchException e) {
+            print("Неправельные данные");
+        }
+    }
+
+    private void addBalanceCard() {
+        try {
+            print("Введите номер карты");
+            int cardNumber = Integer.parseInt(fromConsole());
+            cardAcceptor.setCardNumber(cardNumber);
+            print("Введите пароль от карты");
+            int password = Integer.parseInt(fromConsole());
+            cardAcceptor.setPassword(password);
+            print("Введите сумму");
+            int amount = new Scanner(System.in).nextInt();
+            cardAcceptor.setAmount(amount);
+        } catch (InputMismatchException e) {
+            print("Неправельные данные");
+        }
     }
 }
